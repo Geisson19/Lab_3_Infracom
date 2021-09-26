@@ -1,34 +1,47 @@
 import socket
 import os
-from _thread import *
+from threading import Thread
+from client import ClienteThread
 
-ServerSocket = socket.socket()
-host = '127.0.0.1'
+# Informacion del servidor
 port = 1233
-ThreadCount = 0
-try:
-    ServerSocket.bind((host, port))
-except socket.error as e:
-    print(str(e))
+host_ip = socket.gethostbyname(socket.gethostname())
 
-print('Waitiing for a Connection..')
-ServerSocket.listen(5)
+threads = []
 
+def main():
+    print('[*] Iniciando servidor ...')
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-def threaded_client(connection):
-    connection.send(str.encode('Welcome to the Servern'))
+    print('Archivo tipo 1: 100 MB')
+    print('Archivo tipo 2: 250 MB')
+    arch = input('Seleccione el tipo de archivo a enviar: (1 o 2)')
+    if(arch == '1'):
+        with open("archivo1.txt", "w") as f:
+            #f.seek(106970000)
+            f.write("\0")
+    else:
+        with open("archivo2.txt", "w") as f:
+            #f.seek(106970000*2.4)
+            f.write("\0") 
+
+    # Numero de Threads para las conexiones concurrentes
+    nThreads = int(input('Ingrese el número de threads: '))
+    tup = (host_ip, port)
+    server.bind(tup)
+    server.listen()
+    print('[*] El servidor está escuchando en el puerto {p}.'.format(p=port))
+
     while True:
-        data = connection.recv(2048)
-        reply = 'Server Says: ' + data.decode('utf-8')
-        if not data:
-            break
-        connection.sendall(str.encode(reply))
-    connection.close()
+        server.listen(nThreads) # De los requerimientos
+        print ("\nListening for incoming connections...")
+        clientsock = server.accept()[0]
+        newthread = ClienteThread(host_ip, port, clientsock=clientsock)
+        newthread.start()
+        threads.append(newthread)
 
-while True:
-    Client, address = ServerSocket.accept()
-    print('Connected to: ' + address[0] + ':' + str(address[1]))
-    start_new_thread(threaded_client, (Client, ))
-    ThreadCount += 1
-    print('Thread Number: ' + str(ThreadCount))
-ServerSocket.close()
+    for t in threads:
+        t.join()
+
+if __name__ == '__main__':
+    main()
