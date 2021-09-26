@@ -1,20 +1,33 @@
 import socket
+from threading import Thread
+import threading
 
-ClientSocket = socket.socket()
-host = '127.0.0.1'
+# Informacion del servidor
+ServerSocket = socket.socket()
+# host_ip = socket.gethostbyname(socket.gethostname)
 port = 1233
 
-print('Waiting for connection')
-try:
-    ClientSocket.connect((host, port))
-except socket.error as e:
-    print(str(e))
 
-Response = ClientSocket.recv(1024)
-while True:
-    Input = input('Say Something: ')
-    ClientSocket.send(str.encode(Input))
-    Response = ClientSocket.recv(1024)
-    print(Response.decode('utf-8'))
+class ClienteThread(Thread):
 
-ClientSocket.close()
+    def __init__(self, ip, port, clientsock):
+        Thread.__init__(self)
+        self.ip = ip
+        self.port = port
+        self.clientsock = clientsock
+        print('Nuevo thread @{p} para {add}'.format(p=self.port, add = self.ip))
+    
+    def run(self):
+        print ("Connection from {add}: {p}".format(add = self.ip, p = self.port))
+
+        self.clientsock.send("\nWelcome to the server\n\n")
+
+        data = "dummydata"
+
+        while len(data):
+            data = self.clientsock.recv(2048)
+            print("Cliente envió : "+data)
+            self.clientsock.send("Usted me envió : "+data)
+
+        print( "Cliente desconectado...")
+
