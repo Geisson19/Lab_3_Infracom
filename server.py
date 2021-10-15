@@ -52,7 +52,7 @@ def operate(connection, ip, port, path, nThreads):
     connection.send(f"Bienvenido, {ip}!".encode())
     fhash = generarHash(path)
     fsize = os.path.getsize(path)
-    connection.send(f"Hash: {fhash}".encode())
+    connection.send(f"{fhash}".encode())
     connection.send(f"Cantidad de conexiones: {nThreads}".encode())
     connection.send(f"Archivo: {path}".encode())
 
