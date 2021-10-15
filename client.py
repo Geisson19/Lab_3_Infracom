@@ -1,73 +1,14 @@
-import socket
 import os
-from threading import Thread
+import socket
 from hashlib import sha256
-import time 
-from datetime import datetime
 
-threads = []
+host_ip = socket.gethostbyname(socket.gethostname())
+port = 1233
 
-def main():
-    # Variables de entorno
-    host_ip = socket.gethostbyname(socket.gethostname())
-    port = 1233
-
-    print("[*] Iniciando servidor ...")
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    print("Archivo tipo 1: 100 MB")
-    print("Archivo tipo 2: 250 MB")
-    arch = input("[/] Seleccione el tipo de archivo a enviar: (1 o 2)\n")
-    
-    path = "archivosServidor/"
-    if not os.path.isdir(path):
-        os.mkdir(path)
-
-    if(arch == "1"):
-        path += "archivo1.txt"
-        with open(path, "wb") as f:
-            f.seek(100*1024**2)
-            f.write("Infracom".encode())
-    else:
-        path += "archivo2.txt"
-        with open(path, "wb") as f:
-            f.seek(250*1024**2)
-            f.write("Infracom".encode()) 
-
-    # Numero de Threads para las conexiones concurrentes
-    nThreads = int(input("Ingrese el número de threads: "))
-    tup = (host_ip, port)
-    server.bind(tup)
-    server.listen()
-    print("[*] El servidor está escuchando en el puerto {p}.".format(p=port))
-
-    while True:
-        connection, (ip, port) = server.accept()
-        thread = Thread(target = operate, args = (connection, ip, port, path, nThreads))
-        thread.start()
-        threads.append([ip, port])
-        
-def operate(connection, ip, port, path, nThreads):
-    print(f"Conexión establecida. {ip} @ {port}".encode())
-    connection.send(f"Bienvenido, {ip}!".encode())
-    fhash = generarHash(path)
-    fsize = os.path.getsize(path)
-    connection.send(f"{fhash}".encode())
-    connection.send(f"Cantidad de conexiones: {nThreads}".encode())
-    connection.send(f"Archivo: {path}".encode())
-
-    tiempo1 = time.time()
-    with open(path, "r") as f:
-        file = f.read()
-    connection.send(file.encode())
-
-    tiempo2 = time.time()
-    tiempo = tiempo2 - tiempo1
-    generarLog(path, ip, port, fsize, tiempo)
 
 def generarHash(path):
     hash = sha256()
-    with open(path, "rb") as f:
+    with open(path, 'rb') as f:
         while True:
             bloque = f.read(4096)
             if not bloque:
@@ -76,26 +17,43 @@ def generarHash(path):
     f.close()
     return hash.hexdigest()
 
-
-def generarLog(path, ip, port, fsize, tiempo):
-
-    if not os.path.isdir("./logs"):
-        os.mkdir("./logs")
-
-    fActual = datetime.now()
-    log = f"{fActual.year}-{fActual.month}-{fActual.day}-{fActual.hour}-{fActual.minute}-{fActual.second}-log.txt"
+def main():
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
-    fileLog = open(f"logs/{log}", "x")
+    tam_bloque = 4096
 
-    fileLog.write("Log {}\n".format(fActual))
-    fileLog.write("Nombre del archivo: {}\n".format(path.split("/")[1]))
-    fileLog.write("Tamaño del archivo: {}".format(fsize))
-    fileLog.write("\n")
-    fileLog.write("####################################################\n")
-    fileLog.write("* ip: {add}\n* port: {p}\n* time: {t}\n".format(add=ip, p=port, t = tiempo*1000))
-    fileLog.write("")
+    tup = (host_ip, port)
+    client.connect(tup)
 
-    fileLog.close()
+    bienvenida = client.recv(tam_bloque)
+    print(bienvenida.decode())
+
+    hash_servidor = client.recv(tam_bloque).decode()
+
+    cConexiones = client.recv(tam_bloque).decode()
+    print(f"Cantidad de conexiones: {cConexiones}")
+
+    path = client.recv(tam_bloque).decode()
+    fname = path.split("/")[1]
+
+    archivo_recibido = client.recv(250 * 1024**2)
+    path = 'archivosRecibidos/'
+    if not os.path.isdir(path):
+        os.mkdir(path)
+
+    with open(path + fname, "wb") as f:
+        f.write(archivo_recibido)
+
+    hash_cliente = generarHash(path + fname)
+    if hash_servidor == hash_cliente:
+        print("Los hashes coinciden :)")
+        print(hash_servidor)
+        print(hash_cliente)
+        client.send("Los hashes coinciden :)".encode())
+    else:
+        print(hash_servidor)
+        print(hash_cliente)
+        client.send("Los hashes no coinciden :(".encode())
 
 if __name__ == "__main__":
     main()
