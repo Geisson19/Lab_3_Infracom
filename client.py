@@ -36,7 +36,7 @@ def main():
     path = client.recv(tam_bloque).decode()
     fname = path.split("/")[1]
 
-    archivo_recibido = client.recv(250 * 1024**2)
+    archivo_recibido = client.recv(300 * 1024**2)
     path = 'archivosRecibidos/'
     if not os.path.isdir(path):
         os.mkdir(path)
@@ -51,6 +51,7 @@ def main():
         print(hash_cliente)
         client.send("Los hashes coinciden :)".encode())
     else:
+        print("Los hashes NO coinciden :(")
         print(hash_servidor)
         print(hash_cliente)
         client.send("Los hashes no coinciden :(".encode())
