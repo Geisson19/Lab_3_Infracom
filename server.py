@@ -1,83 +1,17 @@
 import socket
 import os
 from threading import Thread
-from hashlib import sha256
 import time 
 from datetime import datetime
 
 threads = []
 
-def main():
-    # Variables de entorno
-    host_ip = socket.gethostbyname(socket.gethostname())
-    port = 1233
+def crearArchivo(path, tam):
+    with open(path, "wb") as f:
+        f.seek(tam*1024**2)
+        f.write("Infracom".encode()) 
 
-    print("[*] Iniciando servidor ...")
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    print("Archivo tipo 1: 100 MB")
-    print("Archivo tipo 2: 250 MB")
-    arch = input("[/] Seleccione el tipo de archivo a enviar: (1 o 2)\n")
-    
-    path = "archivosServidor/"
-    if not os.path.isdir(path):
-        os.mkdir(path)
-
-    if(arch == "1"):
-        path += "archivo1.txt"
-        with open(path, "wb") as f:
-            f.seek(100*1024**2)
-            f.write("Infracom".encode())
-    else:
-        path += "archivo2.txt"
-        with open(path, "wb") as f:
-            f.seek(250*1024**2)
-            f.write("Infracom".encode()) 
-
-    # Numero de Threads para las conexiones concurrentes
-    nThreads = int(input("Ingrese el número de threads: "))
-    tup = (host_ip, port)
-    server.bind(tup)
-    server.listen()
-    print("[*] El servidor está escuchando en el puerto {p}.".format(p=port))
-
-    while True:
-        connection, (ip, port) = server.accept()
-        thread = Thread(target = operate, args = (connection, ip, port, path, nThreads))
-        thread.start()
-        threads.append([ip, port])
-        
-def operate(connection, ip, port, path, nThreads):
-    print(f"Conexión establecida. {ip} @ {port}".encode())
-    connection.send(f"Bienvenido, {ip}!".encode())
-    fhash = generarHash(path)
-    fsize = os.path.getsize(path)
-    connection.send(f"{fhash}".encode())
-    connection.send(f"Cantidad de conexiones: {nThreads}".encode())
-    connection.send(f"Archivo: {path}".encode())
-
-    tiempo1 = time.time()
-    with open(path, "r") as f:
-        file = f.read()
-    connection.send(file.encode())
-
-    tiempo2 = time.time()
-    tiempo = tiempo2 - tiempo1
-    generarLog(path, ip, port, fsize, tiempo)
-
-def generarHash(path):
-    hash = sha256()
-    with open(path, "rb") as f:
-        while True:
-            bloque = f.read(4096)
-            if not bloque:
-                break
-            hash.update(bloque)
-    f.close()
-    return hash.hexdigest()
-
-
-def generarLog(path, ip, port, fsize, tiempo):
+def generarLog(addr, fsize, tiempo, fname):
 
     if not os.path.isdir("./logs"):
         os.mkdir("./logs")
@@ -88,14 +22,87 @@ def generarLog(path, ip, port, fsize, tiempo):
     fileLog = open(f"logs/{log}", "x")
 
     fileLog.write("Log {}\n".format(fActual))
-    fileLog.write("Nombre del archivo: {}\n".format(path.split("/")[1]))
+    fileLog.write("Nombre del archivo {}\n".format(fname + ".txt"))
     fileLog.write("Tamaño del archivo: {}".format(fsize))
     fileLog.write("\n")
-    fileLog.write("####################################################\n")
-    fileLog.write("* ip: {add}\n* port: {p}\n* time: {t}\n".format(add=ip, p=port, t = tiempo*1000))
-    fileLog.write("")
+    fileLog.write(" ***************** Informacion Cliente ******************** \n")
+    fileLog.write(f"* {addr} \n* time: {round(tiempo,4)} secs")
 
     fileLog.close()
+
+
+def operate(server, addr, path, nThreads, numCliente):
+    print(f"Conexion establecida con {addr}")
+
+    server.sendto(f"Bienvenido, {addr[1]}!".encode("utf-8"), addr) # 1
+    server.sendto(f"{numCliente}".encode("utf-8"), addr) # 2
+    server.sendto(f"{nThreads}".encode("utf-8"), addr) # 3
+
+    buffer_size = 64000;
+
+    inicio = time.time()
+    file = open(path,"rb") 
+    data = file.read(buffer_size)
+
+    actual = 0
+    while (data):
+        if(server.sendto(data,addr)):
+            actual += 0.0625
+            print(f"Enviando al cliente {numCliente} ... " + str(round(actual,3)) + " MB")
+            data = file.read(buffer_size)
+    file.close()
+
+    fin = time.time()
+
+    tiempo = fin - inicio
+    fsize = os.path.getsize(path)
+
+    fname = f"{numCliente}-Prueba-{nThreads}"
+
+    generarLog(addr, fsize, tiempo, fname)
+
+def main():
+    host_ip = "127.0.0.1" #localhost -> cambiar en la maq virtual
+    port = 1233
+
+    print("[*] Iniciando servidor ...")
+    server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    # *************************** Archivos del servidor ********************************
+    print("Archivo tipo 1: 100 MB")
+    print("Archivo tipo 2: 250 MB")
+    arch = input("[/] Seleccione el tipo de archivo a enviar: (1 o 2)\n >>> ")
+    
+    path = "archivosServidor/"
+    if not os.path.isdir(path):
+        os.mkdir(path)
+
+    if(arch == "1"):
+        path += "archivo1.txt"
+        crearArchivo(path, 100)
+    else:
+        path += "archivo2.txt"
+        crearArchivo(path, 250)
+
+    # * Numero de threads server
+    nThreads = int(input("Ingrese el número de threads: "))
+
+    server.bind((host_ip, port))
+    print("[*] El servidor está escuchando en el puerto {p}.".format(p=port))
+
+    # ** Manejo de los clientes
+    id_client = 1;
+    while True:
+        data, addr = server.recvfrom(4096) # Mensaje de listo del cliente y el ip con el estado
+        print(f"Cliente numero: {id_client} {data.decode()}")
+        thread = Thread(target = operate, args = (server, addr, path, nThreads, id_client))
+        id_client += 1
+        thread.start()
+        threads.append([addr, port])
+
+        # if ( len(threads) == nThreads):
+        #     server.close()
+        #     break
 
 if __name__ == "__main__":
     main()
