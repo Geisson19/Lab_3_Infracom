@@ -11,13 +11,13 @@ def crearArchivo(path, tam):
         f.seek(tam*1024**2)
         f.write("Infracom".encode()) 
 
-def generarLog(addr, fsize, tiempo, fname):
+def generarLog(addr, fsize, tiempo, fname, id_cliente):
 
     if not os.path.isdir("./logs"):
         os.mkdir("./logs")
 
     fActual = datetime.now()
-    log = f"{fActual.year}-{fActual.month}-{fActual.day}-{fActual.hour}-{fActual.minute}-{fActual.second}-log.txt"
+    log = f"{fActual.year}-{fActual.month}-{fActual.day}-{fActual.hour}-{fActual.minute}-{fActual.second}-{id_cliente}log.txt"
     
     fileLog = open(f"logs/{log}", "x")
 
@@ -59,7 +59,7 @@ def operate(server, addr, path, nThreads, numCliente):
 
     fname = f"{numCliente}-Prueba-{nThreads}"
 
-    generarLog(addr, fsize, tiempo, fname)
+    generarLog(addr, fsize, tiempo, fname,numCliente)
 
 def main():
     host_ip = "127.0.0.1" #localhost -> cambiar en la maq virtual
@@ -96,13 +96,16 @@ def main():
         data, addr = server.recvfrom(4096) # Mensaje de listo del cliente y el ip con el estado
         print(f"Cliente numero: {id_client} {data.decode()}")
         thread = Thread(target = operate, args = (server, addr, path, nThreads, id_client))
-        id_client += 1
-        thread.start()
-        threads.append([addr, port])
+        
+        threads.append(thread)
 
-        # if ( len(threads) == nThreads):
-        #     server.close()
-        #     break
+        if(id_client == nThreads):
+            for thr in threads:
+                thr.start()
+            server.close()
+            break
+
+        id_client += 1
 
 if __name__ == "__main__":
     main()
