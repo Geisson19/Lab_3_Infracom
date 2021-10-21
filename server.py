@@ -48,12 +48,12 @@ def main():
         threads.append([ip, port])
         
 def operate(connection, ip, port, path, nThreads):
-    print(f"Conexión establecida. {ip} @ {port}".encode())
-    connection.send(f"Bienvenido, {ip}!".encode())
+    print(f"Conexion establecida. {ip} @ {port}".encode())
+    connection.send(f"Bienvenido, {ip}@ {port}!".encode())
     fhash = generarHash(path)
     fsize = os.path.getsize(path)
     connection.send(f"{fhash}".encode())
-    connection.send(f"Cantidad de conexiones: {nThreads}".encode())
+    connection.send(f"{nThreads}".encode())
     connection.send(f"Archivo: {path}".encode())
 
     tiempo1 = time.time()
