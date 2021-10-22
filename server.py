@@ -62,8 +62,8 @@ def operate(server, addr, path, nThreads, numCliente):
     generarLog(addr, fsize, tiempo, fname,numCliente)
 
 def main():
-    host_ip = "127.0.0.1" #localhost -> cambiar en la maq virtual
-    port = 1233
+    host_ip = "192.168.81.128"
+    port = 8081
 
     print("[*] Iniciando servidor ...")
     server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -71,7 +71,7 @@ def main():
     # *************************** Archivos del servidor ********************************
     print("Archivo tipo 1: 100 MB")
     print("Archivo tipo 2: 250 MB")
-    arch = input("[/] Seleccione el tipo de archivo a enviar: (1 o 2)\n >>> ")
+    arch = input("[/] Seleccione el tipo de archivo a enviar: (1 o 2)\n>>> ")
     
     path = "archivosServidor/"
     if not os.path.isdir(path):
@@ -102,7 +102,6 @@ def main():
         if(id_client == nThreads):
             for thr in threads:
                 thr.start()
-            server.close()
             break
 
         id_client += 1

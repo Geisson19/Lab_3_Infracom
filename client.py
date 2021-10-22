@@ -1,8 +1,9 @@
 import os
 import socket
 
-host_ip = "127.0.0.1"
-port = 1233
+#host_ip = "127.0.0.1"
+host_ip = "192.168.81.128" #TODO
+port = 8081 #TODO
 
 def main():
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -31,7 +32,7 @@ def main():
 
     fname = f"{dec_num_cliente}-Prueba-{dec_can_conexiones}.txt"
     file = open(path + fname,'wb')
-    data,addr = client.recvfrom(buf_archivo)
+    data, addr = client.recvfrom(buf_archivo)
     try:
         while(data):
             file.write(data)
